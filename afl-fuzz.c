@@ -2298,7 +2298,7 @@ static u8 run_target(char** argv, u32 timeout) {
     child_pid = fork();
 
     if (child_pid < 0) PFATAL("fork() failed");
-
+    // 子进程
     if (!child_pid) {
 
       struct rlimit r;
@@ -2308,11 +2308,11 @@ static u8 run_target(char** argv, u32 timeout) {
         r.rlim_max = r.rlim_cur = ((rlim_t)mem_limit) << 20;
 
 #ifdef RLIMIT_AS
-
+        //设置虚拟空间大小
         setrlimit(RLIMIT_AS, &r); /* Ignore errors */
 
 #else
-
+        //代码数据段大小
         setrlimit(RLIMIT_DATA, &r); /* Ignore errors */
 
 #endif /* ^RLIMIT_AS */
@@ -2320,14 +2320,14 @@ static u8 run_target(char** argv, u32 timeout) {
       }
 
       r.rlim_max = r.rlim_cur = 0;
-
+      //设置coredump的文件大小
       setrlimit(RLIMIT_CORE, &r); /* Ignore errors */
 
       /* Isolate the process and configure standard descriptors. If out_file is
          specified, stdin is /dev/null; otherwise, out_fd is cloned instead. */
-
+      //创建新的session
       setsid();
-
+      //重定向标准错误和标准输出
       dup2(dev_null_fd, 1);
       dup2(dev_null_fd, 2);
 
@@ -2359,7 +2359,6 @@ static u8 run_target(char** argv, u32 timeout) {
       setenv("MSAN_OPTIONS", "exit_code=" STRINGIFY(MSAN_ERROR) ":"
                              "symbolize=0:"
                              "msan_track_origins=0", 0);
-
       execv(target_path, argv);
 
       /* Use a distinctive bitmap value to tell the parent about execv()
@@ -2370,7 +2369,9 @@ static u8 run_target(char** argv, u32 timeout) {
 
     }
 
-  } else {
+  } 
+  //父进程
+  else {
 
     s32 res;
 
@@ -2501,7 +2502,6 @@ static void write_to_testcase(void* mem, u32 len) {
     if (fd < 0) PFATAL("Unable to create '%s'", out_file);
 
   } else lseek(fd, 0, SEEK_SET);
-
   ck_write(fd, mem, len, out_file);
 
   if (!out_file) {
@@ -2587,11 +2587,11 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
   if (q->exec_cksum) memcpy(first_trace, trace_bits, MAP_SIZE);
 
   start_us = get_cur_time_us();
-
+  SAYF("[+] print stage_max %d status_update_freg %d first_run %d  use_mem %s \n" , stage_max ,stats_update_freq , first_run , use_mem);
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++) {
 
     u32 cksum;
-
+    SAYF("[+] print starge_cur %d \n" , stage_cur);
     if (!first_run && !(stage_cur % stats_update_freq)) show_stats();
 
     write_to_testcase(use_mem, q->len);
@@ -7978,9 +7978,9 @@ int main(int argc, char** argv) {
     FATAL("Use AFL_PRELOAD instead of AFL_LD_PRELOAD");
 
   save_cmdline(argc, argv);
-
+  SAYF("print origin cmdline %s\n",orig_cmdline);
   fix_up_banner(argv[optind]);
-
+ // 获取终端的大小
   check_if_tty();
 
   get_core_count();
@@ -8007,9 +8007,9 @@ int main(int argc, char** argv) {
   if (!timeout_given) find_timeout();
 
   detect_file_args(argv + optind + 1);
-
+	//检查@@ 
   if (!out_file) setup_stdio_file();
-
+	
   check_binary(argv[optind]);
 
   start_time = get_cur_time();
@@ -8020,7 +8020,7 @@ int main(int argc, char** argv) {
     use_argv = argv + optind;
 
   perform_dry_run(use_argv);
-
+  SAYF("pareto %s",use_argv[1]); 
   cull_queue();
 
   show_init_stats();
@@ -8029,7 +8029,7 @@ int main(int argc, char** argv) {
 
   write_stats_file(0, 0, 0);
   save_auto();
-
+  // 开始fuzz
   if (stop_soon) goto stop_fuzzing;
 
   /* Woop woop woop */
@@ -8039,13 +8039,13 @@ int main(int argc, char** argv) {
     start_time += 4000;
     if (stop_soon) goto stop_fuzzing;
   }
-
+ 
   while (1) {
 
     u8 skipped_fuzz;
 
     cull_queue();
-
+    //第一次执行
     if (!queue_cur) {
 
       queue_cycle++;

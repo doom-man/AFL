@@ -241,29 +241,29 @@ static void add_instrumentation(void) {
   u8* colon_pos;
 
 #endif /* __APPLE__ */
-
+	
   if (input_file) {
-
+	SAYF("input_file %s\n",input_file);
     inf = fopen(input_file, "r");
     if (!inf) PFATAL("Unable to read '%s'", input_file);
 
   } else inf = stdin;
 
   outfd = open(modified_file, O_WRONLY | O_EXCL | O_CREAT, 0600);
-
+  SAYF("modified_file %s\n",modified_file);
   if (outfd < 0) PFATAL("Unable to write to '%s'", modified_file);
 
   outf = fdopen(outfd, "w");
-
   if (!outf) PFATAL("fdopen() failed");  
-
+  int line_num = 0;
   while (fgets(line, MAX_LINE, inf)) {
-
+    
     /* In some cases, we want to defer writing the instrumentation trampoline
        until after all the labels, macros, comments, etc. If we're in this
        mode, and if the line starts with a tab followed by a character, dump
        the trampoline now. */
-
+    SAYF("%d %s",line_num  ,line);
+    line_num+=1;
     if (!pass_thru && !skip_intel && !skip_app && !skip_csect && instr_ok &&
         instrument_next && line[0] == '\t' && isalpha(line[1])) {
 
@@ -535,7 +535,9 @@ int main(int argc, char** argv) {
     sanitizer = 1;
     inst_ratio /= 3;
   }
-
+  SAYF("pareto just_version %d \n",just_version	);
+  for ( int i = 0 ; i < as_par_cnt ; i++)
+  		SAYF("%s " ,as_params[i] );
   if (!just_version) add_instrumentation();
 
   if (!(pid = fork())) {

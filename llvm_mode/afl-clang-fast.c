@@ -355,8 +355,7 @@ int main(int argc, char** argv) {
 
   find_obj(argv[0]);
 
-  edit_params(argc, argv);
-
+  edit_params(argc, argv);	
   execvp(cc_params[0], (char**)cc_params);
 
   FATAL("Oops, failed to execute '%s' - check your PATH", cc_params[0]);

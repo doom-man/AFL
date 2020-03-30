@@ -65,21 +65,19 @@ static void find_as(u8* argv0) {
 
   u8 *afl_path = getenv("AFL_PATH");
   u8 *slash, *tmp;
-
   if (afl_path) {
 
     tmp = alloc_printf("%s/as", afl_path);
-
     if (!access(tmp, X_OK)) {
       as_path = afl_path;
       ck_free(tmp);
       return;
     }
-
+	
     ck_free(tmp);
 
   }
-
+  // 判断相对路径还是绝对路径
   slash = strrchr(argv0, '/');
 
   if (slash) {
@@ -88,6 +86,7 @@ static void find_as(u8* argv0) {
 
     *slash = 0;
     dir = ck_strdup(argv0);
+	SAYF("pare2 dir %s argv0",dir , dir);
     *slash = '/';
 
     tmp = alloc_printf("%s/afl-as", dir);
@@ -102,7 +101,7 @@ static void find_as(u8* argv0) {
     ck_free(dir);
 
   }
-
+  SAYF("the path u want to load as %s\n",AFL_PATH);
   if (!access(AFL_PATH "/as", X_OK)) {
     as_path = AFL_PATH;
     return;
@@ -125,10 +124,12 @@ static void edit_params(u32 argc, char** argv) {
 #endif
 
   cc_params = ck_alloc((argc + 128) * sizeof(u8*));
-
   name = strrchr(argv[0], '/');
   if (!name) name = argv[0]; else name++;
-
+  SAYF("print name %s \n",name);
+  for(int i = 0 ; i < argc ; i++){
+  	SAYF("%s \n",argv[i]);
+  	}
   if (!strncmp(name, "afl-clang", 9)) {
 
     clang_mode = 1;
@@ -150,13 +151,12 @@ static void edit_params(u32 argc, char** argv) {
        not call abort(), so afl-fuzz would need to be modified to equate
        non-zero exit codes with crash conditions when working with Java
        binaries. Meh. */
-
+// ubuntu 环境下未执行
 #ifdef __APPLE__
 
     if (!strcmp(name, "afl-g++")) cc_params[0] = getenv("AFL_CXX");
     else if (!strcmp(name, "afl-gcj")) cc_params[0] = getenv("AFL_GCJ");
     else cc_params[0] = getenv("AFL_CC");
-
     if (!cc_params[0]) {
 
       SAYF("\n" cLRD "[-] " cRST
@@ -180,11 +180,11 @@ static void edit_params(u32 argc, char** argv) {
       u8* alt_cc = getenv("AFL_CC");
       cc_params[0] = alt_cc ? alt_cc : (u8*)"gcc";
     }
-
+	SAYF("print cc_params[0] %s \n", cc_params[0]);
 #endif /* __APPLE__ */
 
   }
-
+// 遍历选项和命令
   while (--argc) {
     u8* cur = *(++argv);
 
@@ -215,6 +215,7 @@ static void edit_params(u32 argc, char** argv) {
   }
 
   cc_params[cc_par_cnt++] = "-B";
+  SAYF("print as_path %s" , as_path);
   cc_params[cc_par_cnt++] = as_path;
 
   if (clang_mode)
@@ -336,9 +337,11 @@ int main(int argc, char** argv) {
   find_as(argv[0]);
 
   edit_params(argc, argv);
-
+  for ( int i = 0 ; i < cc_par_cnt ; i ++)
+	  SAYF(" %s " , cc_params[i]);
+  SAYF("\n");
   execvp(cc_params[0], (char**)cc_params);
-
+  
   FATAL("Oops, failed to execute '%s' - check your PATH", cc_params[0]);
 
   return 0;
