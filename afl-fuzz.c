@@ -2278,7 +2278,6 @@ static u8 run_target(char** argv, u32 timeout) {
 
   int status = 0;
   u32 tb4;
-
   child_timed_out = 0;
 
   /* After this memset, trace_bits[] are effectively volatile, so we
@@ -2369,8 +2368,7 @@ static u8 run_target(char** argv, u32 timeout) {
 
     }
 
-  } 
-  //父进程
+  } //父进程
   else {
 
     s32 res;
@@ -2412,7 +2410,6 @@ static u8 run_target(char** argv, u32 timeout) {
   } else {
 
     s32 res;
-
     if ((res = read(fsrv_st_fd, &status, 4)) != 4) {
 
       if (stop_soon) return 0;
@@ -2452,7 +2449,7 @@ static u8 run_target(char** argv, u32 timeout) {
   prev_timed_out = child_timed_out;
 
   /* Report outcome to caller. */
-
+  
   if (WIFSIGNALED(status) && !stop_soon) {
 
     kill_signal = WTERMSIG(status);
@@ -2589,58 +2586,38 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
   start_us = get_cur_time_us();
   SAYF("[+] print stage_max %d status_update_freg %d first_run %d  use_mem %s \n" , stage_max ,stats_update_freq , first_run , use_mem);
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++) {
-
     u32 cksum;
     SAYF("[+] print starge_cur %d \n" , stage_cur);
     if (!first_run && !(stage_cur % stats_update_freq)) show_stats();
-
+    SAYF("[+] print use_mem %s \n",use_mem);
     write_to_testcase(use_mem, q->len);
-
+    //运行程序
     fault = run_target(argv, use_tmout);
-
     /* stop_soon is set by the handler for Ctrl+C. When it's pressed,
        we want to bail out quickly. */
-
     if (stop_soon || fault != crash_mode) goto abort_calibration;
-
     if (!dumb_mode && !stage_cur && !count_bytes(trace_bits)) {
       fault = FAULT_NOINST;
       goto abort_calibration;
     }
-
     cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
-
     if (q->exec_cksum != cksum) {
-
       u8 hnb = has_new_bits(virgin_bits);
       if (hnb > new_bits) new_bits = hnb;
-
       if (q->exec_cksum) {
-
         u32 i;
-
         for (i = 0; i < MAP_SIZE; i++) {
-
           if (!var_bytes[i] && first_trace[i] != trace_bits[i]) {
-
             var_bytes[i] = 1;
             stage_max    = CAL_CYCLES_LONG;
-
           }
-
         }
-
         var_detected = 1;
-
       } else {
-
         q->exec_cksum = cksum;
         memcpy(first_trace, trace_bits, MAP_SIZE);
-
       }
-
     }
-
   }
 
   stop_us = get_cur_time_us();
@@ -7948,6 +7925,8 @@ int main(int argc, char** argv) {
   if (!strcmp(in_dir, out_dir))
     FATAL("Input and output directories can't be the same");
 
+  SAYF("[+] print dumb_mode %d\n",dumb_mode);
+
   if (dumb_mode) {
 
     if (crash_mode) FATAL("-C and -n are mutually exclusive");
@@ -8018,9 +7997,11 @@ int main(int argc, char** argv) {
     use_argv = get_qemu_argv(argv[0], argv + optind, argc - optind);
   else
     use_argv = argv + optind;
-
+  SAYF("[+] print optind %d\n",optind);
+  for (int i = 0 ;  i < argc - optind ; i ++)
+    SAYF("pareto %s\n",*use_argv ); 
   perform_dry_run(use_argv);
-  SAYF("pareto %s",use_argv[1]); 
+  
   cull_queue();
 
   show_init_stats();
