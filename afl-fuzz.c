@@ -151,6 +151,7 @@ EXP_ST u8  virgin_bits[MAP_SIZE],     /* Regions yet untouched by fuzzing */
            virgin_tmout[MAP_SIZE],    /* Bits we haven't seen in tmouts   */
            virgin_crash[MAP_SIZE];    /* Bits we haven't seen in crashes  */
 
+// 已经出现的路径
 static u8  var_bytes[MAP_SIZE];       /* Bytes that appear to be variable */
 
 static s32 shm_id;                    /* ID of the SHM region             */
@@ -906,7 +907,7 @@ static inline u8 has_new_bits(u8* virgin_map) {
 #endif /* ^WORD_SIZE_64 */
 
   u8   ret = 0;
-
+  // SAYF("print the MAP_SIZE >>3 = %d \n",i);
   while (i--) {
 
     /* Optimize for (*current & *virgin) == 0 - i.e., no bits in current bitmap
@@ -7739,6 +7740,7 @@ int main(int argc, char** argv) {
   doc_path = access(DOC_PATH, F_OK) ? "docs" : DOC_PATH;
 
   gettimeofday(&tv, &tz);
+  //通过时间和pid 随机化种子
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
   while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:Q")) > 0)
@@ -7914,12 +7916,12 @@ int main(int argc, char** argv) {
         usage(argv[0]);
 
     }
-
+  // 遍历全部选项都没有设置输入和输出目录则打印usage
   if (optind == argc || !in_dir || !out_dir) usage(argv[0]);
 
   setup_signal_handlers();
   check_asan_opts();
-
+  SAYF("[+] print sync_id %d \n ",sync_id);
   if (sync_id) fix_up_sync();
 
   if (!strcmp(in_dir, out_dir))
@@ -7944,7 +7946,7 @@ int main(int argc, char** argv) {
     hang_tmout = atoi(getenv("AFL_HANG_TMOUT"));
     if (!hang_tmout) FATAL("Invalid value of AFL_HANG_TMOUT");
   }
-
+  
   if (dumb_mode == 2 && no_forkserver)
     FATAL("AFL_DUMB_FORKSRV and AFL_NO_FORKSRV are mutually exclusive");
 
@@ -8000,6 +8002,7 @@ int main(int argc, char** argv) {
   SAYF("[+] print optind %d\n",optind);
   for (int i = 0 ;  i < argc - optind ; i ++)
     SAYF("pareto %s\n",*use_argv ); 
+  //开始前测试所有的测试用例是否如期工作
   perform_dry_run(use_argv);
   
   cull_queue();
