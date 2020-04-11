@@ -151,6 +151,7 @@ EXP_ST u8  virgin_bits[MAP_SIZE],     /* Regions yet untouched by fuzzing */
            virgin_tmout[MAP_SIZE],    /* Bits we haven't seen in tmouts   */
            virgin_crash[MAP_SIZE];    /* Bits we haven't seen in crashes  */
 
+// 已经出现的路径
 static u8  var_bytes[MAP_SIZE];       /* Bytes that appear to be variable */
 
 static s32 shm_id;                    /* ID of the SHM region             */
@@ -906,7 +907,7 @@ static inline u8 has_new_bits(u8* virgin_map) {
 #endif /* ^WORD_SIZE_64 */
 
   u8   ret = 0;
-
+  // SAYF("print the MAP_SIZE >>3 = %d \n",i);
   while (i--) {
 
     /* Optimize for (*current & *virgin) == 0 - i.e., no bits in current bitmap
@@ -4476,7 +4477,7 @@ static u32 next_p2(u32 val) {
 /* Trim all new test cases to save cycles when doing deterministic checks. The
    trimmer uses power-of-two increments somewhere between 1/16 and 1/1024 of
    file size, to keep the stage short and sweet. */
-
+//进行确定性检测时整理所有的测试用例来节约周期 ，修剪器用1/16到1/1024以2的幂的增量来保证简短而优美。
 static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
 
   static u8 tmp[64];
@@ -4974,27 +4975,29 @@ static u8 fuzz_one(char** argv) {
   if (queue_cur->depth > 1) return 1;
 
 #else
-
+  //如果有favored 
   if (pending_favored) {
 
     /* If we have any favored, non-fuzzed new arrivals in the queue,
        possibly skip to them at the expense of already-fuzzed or non-favored
        cases. */
-
+    //队列当前实例被fuzz了 或 当前队列不是favored  则百分之99 被跳过
     if ((queue_cur->was_fuzzed || !queue_cur->favored) &&
         UR(100) < SKIP_TO_NEW_PROB) return 1;
 
-  } else if (!dumb_mode && !queue_cur->favored && queued_paths > 10) {
+  }  //没有favored 且 当前实例不是favored 且测试用例总数大于10 
+  else if (!dumb_mode && !queue_cur->favored && queued_paths > 10) {
 
     /* Otherwise, still possibly skip non-favored cases, albeit less often.
        The odds of skipping stuff are higher for already-fuzzed inputs and
        lower for never-fuzzed entries. */
-
+    //测试轮数大于1 并且当前用例被fuzz 过 ，75%被跳过
     if (queue_cycle > 1 && !queue_cur->was_fuzzed) {
 
       if (UR(100) < SKIP_NFAV_NEW_PROB) return 1;
 
-    } else {
+    } //否则95%被跳过
+      else {
 
       if (UR(100) < SKIP_NFAV_OLD_PROB) return 1;
 
@@ -5017,7 +5020,7 @@ static u8 fuzz_one(char** argv) {
   if (fd < 0) PFATAL("Unable to open '%s'", queue_cur->fname);
 
   len = queue_cur->len;
-
+  
   orig_in = in_buf = mmap(0, len, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 
   if (orig_in == MAP_FAILED) PFATAL("Unable to mmap '%s'", queue_cur->fname);
@@ -5061,9 +5064,9 @@ static u8 fuzz_one(char** argv) {
   /************
    * TRIMMING *
    ************/
-
+  //当前队列没有被修剪
   if (!dumb_mode && !queue_cur->trim_done) {
-
+    //规则比较灵活先看下官方文档更好理解。
     u8 res = trim_case(argv, queue_cur, in_buf);
 
     if (res == FAULT_ERROR)
@@ -5087,19 +5090,19 @@ static u8 fuzz_one(char** argv) {
   /*********************
    * PERFORMANCE SCORE *
    *********************/
-
+  // 得到测试用例得分
   orig_perf = perf_score = calculate_score(queue_cur);
 
   /* Skip right away if -d is given, if we have done deterministic fuzzing on
      this entry ourselves (was_fuzzed), or if it has gone through deterministic
      testing in earlier, resumed runs (passed_det). */
-
+  //???
   if (skip_deterministic || queue_cur->was_fuzzed || queue_cur->passed_det)
     goto havoc_stage;
 
   /* Skip deterministic fuzzing if exec path checksum puts this out of scope
      for this master instance. */
-
+  //???
   if (master_max && (queue_cur->exec_cksum % master_max) != master_id - 1)
     goto havoc_stage;
 
@@ -5118,6 +5121,7 @@ static u8 fuzz_one(char** argv) {
   /* Single walking bit. */
 
   stage_short = "flip1";
+  // len = query->len 
   stage_max   = len << 3;
   stage_name  = "bitflip 1/1";
 
@@ -5132,7 +5136,7 @@ static u8 fuzz_one(char** argv) {
     stage_cur_byte = stage_cur >> 3;
 
     FLIP_BIT(out_buf, stage_cur);
-
+    // 使用修改后的测试用例再运行程序
     if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;
 
     FLIP_BIT(out_buf, stage_cur);
@@ -7725,6 +7729,7 @@ int main(int argc, char** argv) {
 
   s32 opt;
   u64 prev_queued = 0;
+  // 变量seek_to 用来查找之前运行的状态
   u32 sync_interval_cnt = 0, seek_to;
   u8  *extras_dir = 0;
   u8  mem_limit_given = 0;
@@ -7739,6 +7744,7 @@ int main(int argc, char** argv) {
   doc_path = access(DOC_PATH, F_OK) ? "docs" : DOC_PATH;
 
   gettimeofday(&tv, &tz);
+  //通过时间和pid 随机化种子
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
   while ((opt = getopt(argc, argv, "+i:o:f:m:t:T:dnCB:S:M:x:Q")) > 0)
@@ -7914,12 +7920,12 @@ int main(int argc, char** argv) {
         usage(argv[0]);
 
     }
-
+  // 遍历全部选项都没有设置输入和输出目录则打印usage
   if (optind == argc || !in_dir || !out_dir) usage(argv[0]);
 
   setup_signal_handlers();
   check_asan_opts();
-
+  SAYF("[+] print sync_id %d \n ",sync_id);
   if (sync_id) fix_up_sync();
 
   if (!strcmp(in_dir, out_dir))
@@ -7944,7 +7950,7 @@ int main(int argc, char** argv) {
     hang_tmout = atoi(getenv("AFL_HANG_TMOUT"));
     if (!hang_tmout) FATAL("Invalid value of AFL_HANG_TMOUT");
   }
-
+  
   if (dumb_mode == 2 && no_forkserver)
     FATAL("AFL_DUMB_FORKSRV and AFL_NO_FORKSRV are mutually exclusive");
 
@@ -8000,15 +8006,17 @@ int main(int argc, char** argv) {
   SAYF("[+] print optind %d\n",optind);
   for (int i = 0 ;  i < argc - optind ; i ++)
     SAYF("pareto %s\n",*use_argv ); 
+  //开始前测试所有的测试用例是否如期工作
   perform_dry_run(use_argv);
   
   cull_queue();
 
   show_init_stats();
-
+  //重新启动fuzz
   seek_to = find_start_position();
-
+  //打印状态
   write_stats_file(0, 0, 0);
+
   save_auto();
   // 开始fuzz
   if (stop_soon) goto stop_fuzzing;
@@ -8020,7 +8028,7 @@ int main(int argc, char** argv) {
     start_time += 4000;
     if (stop_soon) goto stop_fuzzing;
   }
- 
+  SAYF("[+]  print queue_cycle %d \n",queue_cycle);
   while (1) {
 
     u8 skipped_fuzz;
@@ -8033,7 +8041,7 @@ int main(int argc, char** argv) {
       current_entry     = 0;
       cur_skipped_paths = 0;
       queue_cur         = queue;
-
+      //还原到上次运行的状态
       while (seek_to) {
         current_entry++;
         seek_to--;

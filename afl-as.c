@@ -530,7 +530,7 @@ int main(int argc, char** argv) {
   /* When compiling with ASAN, we don't have a particularly elegant way to skip
      ASAN-specific branches. But we can probabilistically compensate for
      that... */
-
+  //使用ASAN 或 MSAN 则将sanitizer 置1 ， 插入密度降低1/3 .
   if (getenv("AFL_USE_ASAN") || getenv("AFL_USE_MSAN")) {
     sanitizer = 1;
     inst_ratio /= 3;
