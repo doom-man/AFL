@@ -2270,10 +2270,10 @@ EXP_ST void init_forkserver(char** argv) {
 /* Execute target application, monitoring for timeouts. Return status
    information. The called program will update trace_bits[]. */
 
-static u8 run_target(char** argv, u32 timeout) {
+static u8   run_target(char** argv, u32 timeout) {
 
   static struct itimerval it;
-  static u32 prev_timed_out = 0;
+  static u32 prev_timed_out = 0; 
   static u64 exec_ms = 0;
 
   int status = 0;
