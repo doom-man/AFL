@@ -5119,7 +5119,7 @@ static u8 fuzz_one(char** argv) {
   } while (0)
 
   /* Single walking bit. */
-
+  //单步字节翻转
   stage_short = "flip1";
   // len = query->len 
   stage_max   = len << 3;
@@ -5138,7 +5138,7 @@ static u8 fuzz_one(char** argv) {
     FLIP_BIT(out_buf, stage_cur);
     // 使用修改后的测试用例再运行程序
     if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;
-
+    // 还原
     FLIP_BIT(out_buf, stage_cur);
 
     /* While flipping the least significant bit in every byte, pull of an extra
@@ -5447,7 +5447,7 @@ skip_bitflip:
    **********************/
 
   /* 8-bit arithmetics. */
-
+ // 为什么? 
   stage_name  = "arith 8/8";
   stage_short = "arith8";
   stage_cur   = 0;
@@ -8012,7 +8012,7 @@ int main(int argc, char** argv) {
   cull_queue();
 
   show_init_stats();
-  //重新启动fuzz
+  //重新启动fuzz时  ，查找之前的运行
   seek_to = find_start_position();
   //打印状态
   write_stats_file(0, 0, 0);
