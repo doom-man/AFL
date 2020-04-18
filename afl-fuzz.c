@@ -2585,12 +2585,12 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
   if (q->exec_cksum) memcpy(first_trace, trace_bits, MAP_SIZE);
 
   start_us = get_cur_time_us();
-  SAYF("[+] print stage_max %d status_update_freg %d first_run %d  use_mem %s \n" , stage_max ,stats_update_freq , first_run , use_mem);
+  // SAYF("[+] print stage_max %d status_update_freg %d first_run %d  use_mem %s \n" , stage_max ,stats_update_freq , first_run , use_mem);
   for (stage_cur = 0; stage_cur < stage_max; stage_cur++) {
     u32 cksum;
-    SAYF("[+] print starge_cur %d \n" , stage_cur);
+    // SAYF("[+] print starge_cur %d \n" , stage_cur);
     if (!first_run && !(stage_cur % stats_update_freq)) show_stats();
-    SAYF("[+] print use_mem %s \n",use_mem);
+    // SAYF("[+] print use_mem %s \n",use_mem);
     write_to_testcase(use_mem, q->len);
     //运行程序
     fault = run_target(argv, use_tmout);
@@ -5171,7 +5171,7 @@ static u8 fuzz_one(char** argv) {
     if (!dumb_mode && (stage_cur & 7) == 7) {
 
       u32 cksum = hash32(trace_bits, MAP_SIZE, HASH_CONST);
-
+      //如果是文件结尾，并且校验和相同。
       if (stage_cur == stage_max - 1 && cksum == prev_cksum) {
 
         /* If at end of file and we are still collecting a string, grab the
@@ -5198,7 +5198,7 @@ static u8 fuzz_one(char** argv) {
 
       /* Continue collecting string, but only if the bit flip actually made
          any difference - we don't want no-op tokens. */
-
+        //记录发生变化后的值
       if (cksum != queue_cur->exec_cksum) {
 
         if (a_len < MAX_AUTO_EXTRA) a_collect[a_len] = out_buf[stage_cur >> 3];        
@@ -5275,9 +5275,9 @@ static u8 fuzz_one(char** argv) {
 
   /* Effector map setup. These macros calculate:
 
-     EFF_APOS      - position of a particular file offset in the map.
-     EFF_ALEN      - length of a map with a particular number of bytes.
-     EFF_SPAN_ALEN - map span for a sequence of bytes.
+     EFF_APOS      - position of a particular file offset in the map. 在映射中一个特定文件偏移位置
+     EFF_ALEN      - length of a map with a particular number of bytes. 带有特定字节数目的map长度
+     EFF_SPAN_ALEN - map span for a sequence of bytes. 连续字节的映射跨度
 
    */
 
@@ -5379,7 +5379,7 @@ static u8 fuzz_one(char** argv) {
   for (i = 0; i < len - 1; i++) {
 
     /* Let's consult the effector map... */
-
+    //??
     if (!eff_map[EFF_APOS(i)] && !eff_map[EFF_APOS(i + 1)]) {
       stage_max--;
       continue;

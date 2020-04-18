@@ -262,7 +262,7 @@ static void add_instrumentation(void) {
        until after all the labels, macros, comments, etc. If we're in this
        mode, and if the line starts with a tab followed by a character, dump
        the trampoline now. */
-    SAYF("%d %s",line_num  ,line);
+    // SAYF("%d %s",line_num  ,line);
     line_num+=1;
     if (!pass_thru && !skip_intel && !skip_app && !skip_csect && instr_ok &&
         instrument_next && line[0] == '\t' && isalpha(line[1])) {
