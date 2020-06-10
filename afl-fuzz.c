@@ -4305,6 +4305,8 @@ static void show_stats(void) {
   SAYF(bV bSTOP "        trim : " cRST "%-37s " bSTG bVR bH20 bH2 bH2 bRB "\n"
        bLB bH30 bH20 bH2 bH bRB bSTOP cRST RESET_G1, tmp);
 
+  SAYF(bV bSTOP "\n   字符串匹配 : " cRST "%-37s " bSTG bVR bH20 bH2 bH2 bRB "\n"
+       bLB bH30 bH20 bH2 bH bRB bSTOP cRST RESET_G1, "hello world");
   /* Provide some CPU utilization stats. */
 
   if (cpu_core_count) {
@@ -5086,7 +5088,6 @@ static u8 fuzz_one(char** argv) {
   }
 
   memcpy(out_buf, in_buf, len);
-
   /*********************
    * PERFORMANCE SCORE *
    *********************/
@@ -5096,7 +5097,7 @@ static u8 fuzz_one(char** argv) {
   /* Skip right away if -d is given, if we have done deterministic fuzzing on
      this entry ourselves (was_fuzzed), or if it has gone through deterministic
      testing in earlier, resumed runs (passed_det). */
-  //???
+  //fuzz过的测试用例将只会执行随机处理。
   if (skip_deterministic || queue_cur->was_fuzzed || queue_cur->passed_det)
     goto havoc_stage;
 
@@ -5119,9 +5120,8 @@ static u8 fuzz_one(char** argv) {
   } while (0)
 
   /* Single walking bit. */
-  //单步字节翻转
+
   stage_short = "flip1";
-  // len = query->len 
   stage_max   = len << 3;
   stage_name  = "bitflip 1/1";
 
@@ -5138,7 +5138,7 @@ static u8 fuzz_one(char** argv) {
     FLIP_BIT(out_buf, stage_cur);
     // 使用修改后的测试用例再运行程序
     if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;
-    // 还原
+
     FLIP_BIT(out_buf, stage_cur);
 
     /* While flipping the least significant bit in every byte, pull of an extra
@@ -5447,7 +5447,7 @@ skip_bitflip:
    **********************/
 
   /* 8-bit arithmetics. */
- // 为什么? 
+
   stage_name  = "arith 8/8";
   stage_short = "arith8";
   stage_cur   = 0;
@@ -5889,13 +5889,53 @@ skip_arith:
 
   stage_finds[STAGE_INTEREST32]  += new_hit_cnt - orig_hit_cnt;
   stage_cycles[STAGE_INTEREST32] += stage_max;
+  /********************
+   *    字符串匹配     *
+   ********************/
+  // printf("\n current queue : %s \n",queue_cur->fname);
+  // printf("\nout_buf : %s\n",out_buf);
+  // printf("\nlen : %d\n",len);
+  // raise(SIGSEGV);
+  stage_name  = "字符串匹配";
+  stage_short = "字符串";
+  stage_cur   = 0;
+  stage_max   = extras_cnt * len;
+  stage_val_type = STAGE_VAL_NONE;
+  orig_hit_cnt = new_hit_cnt;
+  u8 * tmpptr = NULL;
+  for (i = 0; i < len; i++) {
+    u32 last_len = 0;
+    stage_cur_byte = i;
+    for (j = 0; j < extras_cnt; j++) {
+      if ((extras_cnt > MAX_DET_EXTRAS && UR(extras_cnt) >= MAX_DET_EXTRAS) ||
+          !memcmp(extras[j].data, out_buf + i, extras[j].len) ||
+          !memchr(eff_map + EFF_APOS(i), 1, EFF_SPAN_ALEN(i, extras[j].len))) {
+        stage_max--;
+        continue;
+      }
+      if(extras[j].len > len - i ){
+        tmpptr = ck_alloc_nozero(extras[j].len + i);
+        memcpy(tmpptr,out_buf,i);
+        memcpy(tmpptr+i,extras[j].data,extras[j].len);
+        printf("\nout_buf : %s\ntmpptr : %s \n",out_buf,tmpptr);
+        if (common_fuzz_stuff(argv, tmpptr, extras[j].len + i)) goto abandon_entry;
+        ck_free(tmpptr);
+        stage_cur++;
+        continue;
+      }
+      // raise(SIGSEGV);
+      stage_cur++;
+    }
+    /* Restore all the clobbered memory. */
+  }
+
+  // raise(SIGSEGV);
 
 skip_interest:
 
   /********************
    * DICTIONARY STUFF *
    ********************/
-
   if (!extras_cnt) goto skip_user_extras;
 
   /* Overwrite with user-supplied extras. */
@@ -5904,10 +5944,13 @@ skip_interest:
   stage_short = "ext_UO";
   stage_cur   = 0;
   stage_max   = extras_cnt * len;
-
   stage_val_type = STAGE_VAL_NONE;
 
   orig_hit_cnt = new_hit_cnt;
+  // for(int j = 0 ;  j < extras_cnt ; j ++){
+  //   printf("j : %d \nextras data : %s \n",j , extras[j].data);
+  // }
+  // pause();
 
   for (i = 0; i < len; i++) {
 
@@ -5921,26 +5964,28 @@ skip_interest:
        loop. */
 
     for (j = 0; j < extras_cnt; j++) {
-
       /* Skip extras probabilistically if extras_cnt > MAX_DET_EXTRAS. Also
          skip them if there's no room to insert the payload, if the token
          is redundant, or if its entire span has no bytes set in the effector
          map. */
+      
 
       if ((extras_cnt > MAX_DET_EXTRAS && UR(extras_cnt) >= MAX_DET_EXTRAS) ||
-          extras[j].len > len - i ||
+          extras[j].len > len - i || //避免溢出
           !memcmp(extras[j].data, out_buf + i, extras[j].len) ||
           !memchr(eff_map + EFF_APOS(i), 1, EFF_SPAN_ALEN(i, extras[j].len))) {
 
         stage_max--;
+
         continue;
 
       }
-
+      
       last_len = extras[j].len;
       memcpy(out_buf + i, extras[j].data, last_len);
-
       if (common_fuzz_stuff(argv, out_buf, len)) goto abandon_entry;
+       
+      // raise(SIGSEGV);
 
       stage_cur++;
 
@@ -8008,11 +8053,10 @@ int main(int argc, char** argv) {
     SAYF("pareto %s\n",*use_argv ); 
   //开始前测试所有的测试用例是否如期工作
   perform_dry_run(use_argv);
-  
   cull_queue();
 
   show_init_stats();
-  //重新启动fuzz时  ，查找之前的运行
+  //重新启动fuzz
   seek_to = find_start_position();
   //打印状态
   write_stats_file(0, 0, 0);
@@ -8029,6 +8073,7 @@ int main(int argc, char** argv) {
     if (stop_soon) goto stop_fuzzing;
   }
   SAYF("[+]  print queue_cycle %d \n",queue_cycle);
+
   while (1) {
 
     u8 skipped_fuzz;
